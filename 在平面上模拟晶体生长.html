@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>晶体生长</title>
+        <meta charset='utf-8'>
+        <script  type="text/javascript" src="crystalgrowth.js"></script>
+        <style type="text/css">
+        .table{
+        display: table;
+        width: 800px;
+        height: 300px;
+        /*border-collapse: collapse;*/
+
+        }
+        .tb_row{
+        display: table-row;
+        }
+
+        .tb_cell{
+        display: table-cell;
+        vertical-align: middle;
+        }
+
+
+        .left{
+        float:left;
+        }
+        .right{
+        margin:20px 50px 20px 10px;
+        padding-bottom:10px;
+        text-align:right;
+        width:502px;
+        }
+        table 
+        </style>
+    </head>
+    <body>
+        <center>
+            <h1 style="font-family:黑体">在平面上模拟晶体生长</h1>
+        <div class="table">
+        <div class="tb_row">
+        <canvas id="canvas" width="602" height="602" class="left tb_cell"></canvas>
+        <script  type="text/javascript" src="fabric.min.js" style="float:right"></script>
+        <div class="right tb_cell">
+            <input type="button" value="重新生长" style="width:70px;" onclick="javascript:restartGame()">
+            <p style="font-family:楷体">平面大小：<input type="text" value="50" id="panelSize" style="width:70px;margin-right:20px;"></p>
+            <p style="font-family:楷体">原子消失概率：<input type="text" value="0.025" id="proDisappear" style="width:50px;margin-right:20px;"></p>
+            <p style="font-family:楷体">孤立生长概率：<input type="text" value="0.005" id="proAppear" style="width:50px;margin-right:20px;"></p>
+            <p style="font-family:楷体">吸附后扩张概率：<input type="text" value="0.9" id="proGather1" style="width:30px;margin-right:20px;"></p>
+            <p style="font-family:楷体">吸附生长概率：<input type="text" value="0.95" id="proGather2" style="width:30px;margin-right:20px;"></p>
+<br />
+            <p style="font-family:楷体">原子数：<span id="atomNumber" style="display:inline-block;width:50px;">0</span></p>
+            <p style="font-family:楷体">周期数：<span id="period" style="display:inline-block;width:40px;">0</span></p>
+            <p style="font-family:楷体">一个周期为800ms</p>
+        </div>
+        </div>
+        </div>
+        </center>
+        <script>
+            var atom;
+            var gameTimer = 0;
+            var canvas = new fabric.Canvas('canvas');
+            canvas.renderOnAddRemove = false;
+            var atoms = [];
+
+            restartGame();
+            function initGame()
+            {
+                var rect = new fabric.Rect({
+                    top : 0,
+                    left : 0,
+                    width : 600,
+                    height : 600,
+                    fill : 'lightsteelblue',
+                    selectable: false, 
+                    strokeWidth: 1,
+                    stroke: '#c1c1c1'
+
+                });
+                canvas.add(rect);
+                canvas.renderAll();
+            }
+
+            function restartGame()
+            {
+                var size = parseInt(document.getElementById('panelSize').value);//在这里决定平面的大小
+                if (isNaN(size) || size <= 0) {
+                    alert('平面的大小应该是一个正数');
+                    return;
+                }
+
+                var disappear = parseFloat(document.getElementById('proDisappear').value);//在这里决定原子消失的概率
+                if (isNaN(disappear) || disappear <= 0) {
+                    alert('请输入有意义的消失概率');
+                    return;
+                }
+
+                var appear = parseFloat(document.getElementById('proAppear').value);//在这里决定原子出现的概率
+                if (isNaN(appear) || appear <= 0) {
+                    alert('请输入有意义的出现概率');
+                    return;
+                }
+
+                var gatherEight = parseFloat(document.getElementById('proGather1').value);//在这里决定8个一起聚集的出现概率
+                if (isNaN(gatherEight) || gatherEight <= 0) {
+                    alert('请输入有意义的聚集概率');
+                    return;
+                }
+
+                var gatherSeven = parseFloat(document.getElementById('proGather2').value);//在这里决定7个一起聚集的出现概率
+                if (isNaN(gatherSeven) || gatherSeven <= 0) {
+                    alert('请输入有意义的聚集概率');
+                    return;
+                }
+
+                if (gameTimer != 0)
+                    clearInterval(gameTimer);
+                canvas.clear();
+                initGame();
+                beginGame(size, size, disappear, appear, gatherEight, gatherSeven);
+            }
+
+            function beginGame(row,col,p1,p2,p3,p4)
+            {
+                atom = new CrystalGrowth(row,col,p1,p2,p3,p4);
+                atom.initRandom();
+                  var width  = 600/atom.col;
+                  var height = 600/atom.row;
+                  for(var i=0;i<atom.row;i++) {
+                      atoms[i] = [];
+                      for(var j=0;j<atom.col;j++) {
+                        atoms[i][j] = new fabric.Rect({
+                            top:    i*height,
+                            left:   j*width,
+                            width:  width,
+                            height: height,
+                            fill:   'hotpink',
+                            selectable: false,
+                            stroke: 'rgba(100,100,100,0.8)',
+                            strokeWidth: 1,
+                            visible:    false
+                        });
+                        canvas.add(atoms[i][j]);
+                      }
+                  }
+                refreshGame(); 
+                gameTimer = setInterval(refreshGame, 800);
+            }
+
+            function refreshGame()
+            {
+                drawAtom();
+                document.getElementById('atomNumber').innerText = atom.atomNumber;
+                document.getElementById('period').innerText = atom.period;
+                if (atom.atomNumber == atom.sss) {
+                    pauseGame();
+                }
+                atom.nextAround();  
+            }
+
+
+
+            function drawAtom()
+            {
+                for(var i=0;i<atom.row;i++) {
+                    for(var j=0;j<atom.col;j++) {
+                        if (atom.isAlive(i,j))  {
+                           atoms[i][j].visible = true;
+                        } else {
+                           atoms[i][j].visible = false;
+                        }
+                    }
+                }
+                canvas.renderAll();
+            }
+
+
+            function pauseGame()
+            {
+                clearInterval(gameTimer);
+            }
+
+        </script>
+</body>
+</html>
